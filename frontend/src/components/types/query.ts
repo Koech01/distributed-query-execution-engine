@@ -48,7 +48,7 @@ export interface QueryStatusResponse {
 export interface ErrorResponse {
   error: string
   message: string
-  details?: string[]
+  details?: string[] | null
 }
 
 export interface HealthResponse {
