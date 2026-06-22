@@ -31,6 +31,7 @@ describe('LoginPage', () => {
     vi.stubEnv('VITE_DEV_USE_PROXY', 'false')
     vi.stubEnv('VITE_OAUTH_GOOGLE_ENABLED', 'true')
     vi.stubEnv('VITE_OAUTH_GITHUB_ENABLED', 'true')
+    vi.stubEnv('VITE_SEED_LOGIN_PREFILL_ENABLED', 'false')
     clearSession()
     clearMockAuthCookie()
   })
@@ -178,6 +179,23 @@ describe('LoginPage', () => {
     await waitFor(() => {
       expect(getSessionUser()).toBeNull()
     })
+  })
+
+  it('prefills seeded admin credentials when seed login prefill is enabled', () => {
+    vi.stubEnv('VITE_SEED_LOGIN_PREFILL_ENABLED', 'true')
+    vi.stubEnv('VITE_SEED_LOGIN_ADMIN_EMAIL', 'admin@example.com')
+    vi.stubEnv('VITE_SEED_LOGIN_ADMIN_PASSWORD', 'ChangeMe-Admin-12')
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/login/']}>
+          <LoginPage />
+        </MemoryRouter>
+      </AuthProvider>,
+    )
+
+    expect(screen.getByLabelText('Email address')).toHaveValue('admin@example.com')
+    expect(screen.getByLabelText('Password')).toHaveValue('ChangeMe-Admin-12')
   })
 
   it('shows callback errors from the query string', () => {

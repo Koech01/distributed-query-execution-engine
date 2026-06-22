@@ -22,6 +22,7 @@ For setup steps, see the [README](../README.md). For HTTP endpoints, see [api.md
 | GitHub OAuth | Sign in with GitHub when enabled |
 | Route guards | Protected pages require a signed-in session |
 | Pre-seeded demo accounts | Admin and standard user accounts created automatically in Development |
+| Optional login prefill | Prefill login credentials via `VITE_SEED_LOGIN_*` env vars (disabled by default) |
 
 ### Query console (`/query`)
 

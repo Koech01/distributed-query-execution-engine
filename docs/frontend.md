@@ -189,6 +189,11 @@ Copy `frontend/.env.example` to `frontend/.env`, or run `./setup.sh` from the re
 | `VITE_AUTH_ENABLED` | `true` | Set `false` to bypass auth guards locally |
 | `VITE_OAUTH_GOOGLE_ENABLED` | `true` | Hide Google sign-in when backend disables it |
 | `VITE_OAUTH_GITHUB_ENABLED` | `true` | Hide GitHub sign-in when backend disables it |
+| `VITE_SEED_LOGIN_PREFILL_ENABLED` | `false` | Prefill login form with demo credentials in local development |
+| `VITE_SEED_LOGIN_ADMIN_EMAIL` | unset | Admin demo email when prefill is enabled |
+| `VITE_SEED_LOGIN_ADMIN_PASSWORD` | unset | Admin demo password when prefill is enabled |
+| `VITE_SEED_LOGIN_USER_EMAIL` | unset | Standard user demo email when prefill is enabled |
+| `VITE_SEED_LOGIN_USER_PASSWORD` | unset | Standard user demo password when prefill is enabled |
 | `VITE_GRAFANA_URL` | empty | Grafana link on Operations page |
 | `VITE_JAEGER_URL` | empty | Jaeger link on Operations page |
 
@@ -214,6 +219,8 @@ Open http://localhost:5173 and sign in at `/login/` with a pre-seeded developmen
 | Standard user | `user@example.com` | `ChangeMe-User-12` |
 
 Accounts are created when the API starts in Development. You can still register additional accounts at `/signup/`.
+
+To prefill the login form locally, set `VITE_SEED_LOGIN_PREFILL_ENABLED=true` in `frontend/.env` and configure the `VITE_SEED_LOGIN_*` variables documented above.
 
 Configure backend `Authentication:Frontend:CallbackUrl` to `http://localhost:5173/auth/callback` for OAuth.
 

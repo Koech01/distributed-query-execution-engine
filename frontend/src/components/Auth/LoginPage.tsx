@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { isBackendOAuthProviderEnabled, sanitizeReturnTo } from '@/lib/auth'
 import { getErrorMessage } from '@/lib/errors'
 import { loginRequestSchema } from '@/lib/schemas'
+import { getDefaultSeedLoginPrefill, getSeedLoginAccounts } from '@/lib/seed-login'
 
 type ActiveSignIn = 'email' | BackendOAuthProvider
 
@@ -26,8 +27,9 @@ export function LoginPage() {
 
   const { isAuthenticated, isAuthEnabled, loginWithEmail, loginWithOAuth } = useAuth()
   const [searchParams] = useSearchParams()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const seedLoginAccounts = getSeedLoginAccounts()
+  const [email, setEmail] = useState(() => getDefaultSeedLoginPrefill()?.email ?? '')
+  const [password, setPassword] = useState(() => getDefaultSeedLoginPrefill()?.password ?? '')
   const [emailError, setEmailError] = useState<string | null>(null)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [activeSignIn, setActiveSignIn] = useState<ActiveSignIn | null>(null)
@@ -139,6 +141,37 @@ export function LoginPage() {
                 <span className="bg-card px-3 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                   Or sign in with email
                 </span>
+              </div>
+            </div>
+          ) : null}
+
+          {seedLoginAccounts.length > 1 ? (
+            <div
+              className="rounded-lg border border-border/60 bg-muted/30 px-3 py-3"
+              aria-label="Development demo accounts"
+            >
+              <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                Development demo accounts
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {seedLoginAccounts.map((account) => (
+                  <Button
+                    key={account.label}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isBusy}
+                    onClick={() => {
+                      setEmail(account.email)
+                      setPassword(account.password)
+                      setEmailError(null)
+                      setPasswordError(null)
+                      setErrorMessage(null)
+                    }}
+                  >
+                    Use {account.label}
+                  </Button>
+                ))}
               </div>
             </div>
           ) : null}

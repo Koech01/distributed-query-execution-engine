@@ -16,7 +16,8 @@ Docker alone is enough to run the backend. Node.js and .NET are needed for activ
 
 ## Quick start
 
-> **Important:** Start Docker Desktop before running setup. If Docker is not running, builds and health checks will fail.
+> [!IMPORTANT]
+> Before starting, open Docker Desktop or ensure the Docker daemon is running. If Docker is not running, setup may fail with connection errors, failed builds, or application startup issues.
 
 ```bash
 git clone <repository-url>
