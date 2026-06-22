@@ -1,0 +1,14 @@
+**/.git
+**/.vs
+**/.vscode
+**/bin
+**/obj
+**/TestResults
+**/coverage
+**/*.user
+**/*.suo
+**/*.log
+**/*.tmp
+**/.DS_Store
+docs
+agent-transcripts

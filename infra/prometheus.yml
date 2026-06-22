@@ -1,0 +1,33 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: dqee-api
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - api:8080
+
+  - job_name: dqee-coordinator
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - coordinator:8080
+
+  - job_name: dqee-worker
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - worker:5101
+
+  - job_name: rabbitmq
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - rabbitmq:15692
+
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - prometheus:9090

@@ -1,0 +1,275 @@
+name: distributed-query-execution-engine
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/DistributedQuery.Api/Dockerfile
+    image: dqee/api:local
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Authentication__Enabled: "true"
+      CoordinatorClient__BaseUrl: http://coordinator:8080
+      CoordinatorClient__RequestTimeoutMs: "120000"
+      OpenTelemetry__ServiceName: DistributedQuery.Api
+      OpenTelemetry__OtlpEndpoint: http://jaeger:4317
+      Redis__ConnectionString: redis:6379,abortConnect=false
+      Redis__InstanceName: "dqee:"
+      RateLimiting__MaxConcurrentRequests: "200"
+      RateLimiting__QueueLimit: "50"
+    ports:
+      - "5281:8080"
+    depends_on:
+      coordinator:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 15s
+    restart: unless-stopped
+
+  coordinator:
+    build:
+      context: .
+      dockerfile: src/DistributedQuery.Coordinator/Dockerfile
+    image: dqee/coordinator:local
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Consul__Address: http://consul:8500
+      Consul__NodeCacheTtlSeconds: "5"
+      Coordinator__DefaultQueryTimeoutMs: "30000"
+      Coordinator__FanOut__MaxConcurrentWorkerCalls: "50"
+      Coordinator__FanOut__PerWorkerTimeoutMs: "25000"
+      Coordinator__MaxQueryTimeoutMs: "120000"
+      Coordinator__MinimumShardCoverage: "0.8"
+      Coordinator__PartialFailurePolicy: BestEffort
+      Coordinator__PlanCacheTtlSeconds: "3600"
+      Coordinator__Resilience__CircuitBreakerBreakDurationSeconds: "15"
+      Coordinator__Resilience__CircuitBreakerFailureThreshold: "5"
+      Coordinator__Resilience__CircuitBreakerSamplingDurationSeconds: "30"
+      Coordinator__Resilience__RetryBaseDelayMs: "100"
+      Coordinator__Resilience__RetryCount: "3"
+      Coordinator__ResultCacheTtlSeconds: "300"
+      Messaging__CoordinatorPrefetchCount: "16"
+      Messaging__EnableCoordinatorConsumer: "true"
+      Messaging__EnableWorkerConsumer: "false"
+      OpenTelemetry__ServiceName: DistributedQuery.Coordinator
+      OpenTelemetry__OtlpEndpoint: http://jaeger:4317
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Username: guest
+      RabbitMq__Password: guest
+      RabbitMq__VirtualHost: /
+      Redis__ConnectionString: redis:6379,abortConnect=false
+      Redis__InstanceName: "dqee:"
+      ShardMap__Tables__orders__ShardCount: "4"
+      ShardMap__Tables__orders__ShardKey: customer_id
+      ShardMap__Tables__orders__Strategy: ConsistentHash
+      WorkerRegistration__Enabled: "false"
+    ports:
+      - "5200:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 15s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: src/DistributedQuery.Worker/Dockerfile
+    image: dqee/worker:local
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      Consul__Address: http://consul:8500
+      Consul__ServiceName: distributed-query-worker
+      Messaging__EnableCoordinatorConsumer: "false"
+      Messaging__EnableWorkerConsumer: "true"
+      OpenTelemetry__ServiceName: DistributedQuery.Worker
+      OpenTelemetry__OtlpEndpoint: http://jaeger:4317
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Username: guest
+      RabbitMq__Password: guest
+      RabbitMq__VirtualHost: /
+      Worker__Address: worker
+      Worker__Consul__DeregisterCriticalServiceAfterSeconds: "30"
+      Worker__Consul__Enabled: "true"
+      Worker__Consul__HealthCheckIntervalSeconds: "10"
+      Worker__Consul__HealthCheckTimeoutSeconds: "5"
+      Worker__Execution__CommandTimeoutSeconds: "25"
+      Worker__Execution__DrainTimeoutSeconds: "15"
+      Worker__Execution__MaxConcurrentQueries: "10"
+      Worker__Execution__StreamChunkSize: "500"
+      Worker__GrpcPort: "5100"
+      Worker__HealthPort: "5101"
+      Worker__NodeId: worker-node-01
+      Worker__ShardIndices__0: "0"
+      Worker__ShardIndices__1: "1"
+      Worker__ShardIndices__2: "2"
+      Worker__ShardIndices__3: "3"
+      Worker__Shards__0: Data Source=/data/shard0.db
+      Worker__Shards__1: Data Source=/data/shard1.db
+      Worker__Shards__2: Data Source=/data/shard2.db
+      Worker__Shards__3: Data Source=/data/shard3.db
+      Worker__Version: "1.0.0"
+    ports:
+      - "5100:5100"
+      - "5101:5101"
+    volumes:
+      - worker-data:/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:5101/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 15s
+    stop_grace_period: 35s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    command: >
+      sh -c "rabbitmq-plugins enable --offline rabbitmq_prometheus &&
+      rabbitmq-server"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit consumer_timeout 120000"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+      - "15692:15692"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  consul:
+    image: hashicorp/consul:1.19
+    command:
+      - agent
+      - -dev
+      - -client=0.0.0.0
+      - -log-level=INFO
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+    volumes:
+      - consul-data:/consul/data
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "16686:16686"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_USERS_DEFAULT_THEME: light
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  worker-data:
+  redis-data:
+  rabbitmq-data:
+  consul-data:
+  prometheus-data:
+  grafana-data:

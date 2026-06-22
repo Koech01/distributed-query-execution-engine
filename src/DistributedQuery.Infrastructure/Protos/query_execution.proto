@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+option csharp_namespace = "DistributedQuery.Infrastructure.Grpc";
+
+package queryexecution;
+
+service QueryExecution {
+  rpc ExecuteSubQuery(SubQueryRequest) returns (stream PartialResultResponse);
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message SubQueryRequest {
+  string sub_query_id = 1;
+  string parent_query_id = 2;
+  string sql = 3;
+  int32 shard_index = 4;
+  int32 total_shards = 5;
+  repeated QueryParameter parameters = 6;
+  int64 timeout_ms = 7;
+}
+
+message QueryParameter {
+  string name = 1;
+  string type = 2;
+  string value = 3;
+}
+
+message PartialResultResponse {
+  string sub_query_id = 1;
+  oneof payload {
+    PartialResultChunk chunk = 2;
+    PartialResultError error = 3;
+    PartialResultMeta meta = 4;
+  }
+}
+
+message PartialResultChunk {
+  repeated ResultRow rows = 1;
+}
+
+message ResultRow {
+  repeated string values = 1;
+}
+
+message PartialResultMeta {
+  repeated ColumnDescriptor columns = 1;
+  int64 row_count = 2;
+  int64 execution_ms = 3;
+}
+
+message ColumnDescriptor {
+  string name = 1;
+  string data_type = 2;
+  bool nullable = 3;
+}
+
+message PartialResultError {
+  string code = 1;
+  string message = 2;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  enum Status {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+  }
+  Status status = 1;
+}
